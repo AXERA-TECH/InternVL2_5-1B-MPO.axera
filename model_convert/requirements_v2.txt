@@ -1,0 +1,12 @@
+onnx
+onnxsim
+onnxslim
+onnxruntime
+opencv-python
+torch
+torchvision
+numpy
+loguru
+transformers
+einops
+timm

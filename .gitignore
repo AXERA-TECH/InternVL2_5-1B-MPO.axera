@@ -1,0 +1,11 @@
+__pycache__
+*.tar
+build-output/
+*.onnx
+*.pth
+*.pkl
+*.axmodel
+compiled*
+tmp/
+InternVL2_5-1B-MPO/
+InternVL2_5-1B-MPO_axmodel/
