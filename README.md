@@ -178,7 +178,7 @@ Inference done!
 
 ```sh
 $ cd InternVL2_5-1B-MPO.axera/python
-$ python3 infer.py --hf_model InternVL2_5-1B-MPO/ --axmodel_path InternVL2_5-1B-MPO_axmodel/ -q "请分别描述这几幅图像的内容, 并找出它们的异同点" -i examples/image_0.jpg examples/image_1.jpg examples/image_2.png examples/image_3.png
+$ python3 infer.py --hf_model InternVL2_5-1B-MPO/ --axmodel_path InternVL2_5-1B-MPO_axmodel/ -q "我输入了几幅图? 内容是什么?" -i examples/image_0.jpg examples/image_1.jpg examples/image_2.png examples/image_3.png --vit_model vit_axmodel/internvl2_5_1b_mpo_vit.axmodel
 ```
 
 此模型最多支持 `4` 幅图像作为输入:
@@ -194,14 +194,38 @@ $ python3 infer.py --hf_model InternVL2_5-1B-MPO/ --axmodel_path InternVL2_5-1B-
 模型推理结果如下:
 
 ```bash
-None
+python3 infer.py --hf_model InternVL2_5-1B-MPO/ --axmodel_path InternVL2_5-1B-MPO_axmodel/ -q "我输入了几幅图? 内容是什么?" -i examples/image_0.jpg examples/image_1.jpg examples/image_2.png examples/image_3.png --vit_model vit_axmodel/internvl2_5_1b_mpo_vit.axmodel
+
+prefill token_len:  1119
+slice_indexs is [0, 1, 2, 3, 4, 5, 6, 7, 8]
+slice prefill done 0
+slice prefill done 1
+slice prefill done 2
+slice prefill done 3
+slice prefill done 4
+slice prefill done 5
+slice prefill done 6
+slice prefill done 7
+slice prefill done 8
+answer >>
+
+1. **红熊猫**: 图片中是一只红熊猫，它有着鲜艳的红棕色毛发，黑色的面部和白色的胡须，正趴在木头上，背景是绿色的树木和植物。
+
+2. **大熊猫**: 图片中是一只大熊猫，它有着黑白相间的毛发，黑色的耳朵和四肢，以及白色的面部和鼻子，正在竹子间休息，背景是绿色的植被。
+
+3. **宇航员**: 图片中有三名宇航员，他们穿着白色的宇航服，戴着头盔，站在一片森林中，背景是高大的树木和植物，环境显得神秘而宁静。
+
+4. **少女**: 图片中是一位少女，她有着银色的长发，戴着粉色的花朵发饰，穿着蓝色的连衣裙，背景是海滩和海洋，天空晴朗，海浪轻拍沙滩。
+
+^@这些图片展示了不同的动物和场景，从自然到科幻，从宁静到神秘。
+Inference done!
 ```
 
 输入以下命令执行**视频理解**任务:
 
 ```sh
 $ cd InternVL2_5-1B-MPO.axera/python
-$ python3 infer_video.py --hf_model InternVL2_5-1B-MPO/ --axmodel_path InternVL2_5-1B-MPO_axmodel_2048/ --vit_model vit_axmodel/internvl3_2b_vit_slim.axmodel -q "请描述这个视频" -i examples/red-panda.mp4
+$ python3 infer.py --hf_model InternVL2_5-1B-MPO/ --axmodel_path InternVL2_5-1B-MPO_axmodel/ -q "请描述这个视频" --vit_model vit_axmodel/internvl2_5_1b_mpo_vit.axmodel -v red-panda.mp4
 ```
 
 模型输入:
@@ -215,7 +239,21 @@ https://github.com/user-attachments/assets/2beffc73-d078-4c54-8282-7b7d845f39c9
 模型推理结果如下:
 
 ```bash
-None
+ai@ai-bj ~/yongqiang/InternVL2_5-1B-MPO.axera/python $ python3 infer.py --hf_model InternVL2_5-1B-MPO/ --axmodel_path InternVL2_5-1B-MPO_axmodel/ -q "请描述这个视频" --vit_model vit_axmodel/internvl2_5_1b_mpo_vit.axmodel -v red-panda.mp4
+
+prefill token_len:  1104
+slice_indexs is [0, 1, 2, 3, 4, 5, 6, 7, 8]
+slice prefill done 0
+slice prefill done 1
+slice prefill done 2
+slice prefill done 3
+slice prefill done 4
+slice prefill done 5
+slice prefill done 6
+slice prefill done 7
+slice prefill done 8
+answer >> 视频显示一只红熊猫在一个被木屑覆盖的户外环境中活动。红熊猫在木屑铺成的地面上行走，周围有绿色植物和一些木制结构。在视频的开始，红熊猫在左侧的树丛附近活动，然后向右侧移动。随着红熊猫继续行走，可以看到它经过了一些大石头和木制的围栏。背景中有一些木制的小屋和树木，环境看起来像是一个动物园或野生动物保护区。阳光透过树叶洒在地面上，给场景增添了一种温暖的氛围。红熊猫看起来很自在，没有受到限制^@地在环境中移动。
+Inference done!
 ```
 
 #### 图像/视频理解任务·推理耗时统计
@@ -225,31 +263,8 @@ Chips | Image num | ImageEncoder (448x448) | Prefill TTFT | Decoder | w8a16
 AX650N | 0 | 0 ms | 220.979 ms (128 tokens) | 86.969 ms | 11.50 tokens/sec
 AX650N | 1 | 364.870 ms | 862.291 ms (384 tokens) | 86.969 ms | 11.50 tokens/sec
 AX650N | 4 | 1460 ms | 4588.79 ms (1152 tokens) | 86.969 ms | 11.50 tokens/sec
-AX650N | 8 | 2920 ms | 13904.383 ms (2176 tokens) | 86.969 ms | 11.50 tokens/sec
 
 备注: 128 chunk prefill 推理, decode layer 耗时 2.686 ms * 28, post 耗时 11.455 ms.
-
-该模型 prefill 阶段存在 17 个可用子图, 每个子图耗时如下:
-
-```
-g1: 7.483 ms
-g2: 10.089 ms
-g3: 12.815 ms
-g4: 15.235 ms
-g5: 18.527 ms
-g6: 20.751 ms
-g7: 23.520 ms
-g8: 25.932 ms
-g9: 29.124 ms
-g10: 31.727 ms
-g11: 34.708 ms
-g12: 36.982 ms
-g13: 39.950 ms
-g14: 42.418 ms
-g15: 45.933 ms
-g16: 48.577 ms
-g17: 52.405 ms
-```
 
 decode 阶段只有一个子图, 耗时如下:
 
@@ -259,15 +274,10 @@ g0: 2.664 ms
 
 在**单幅图像**推理时, prefil TTFT 为: (g1 + g2 + g3) * 28 + 11.455 = 30.387 * 28 + 11.455 = 862.291 ms.
 
-在**四幅图像**推理时, prefil TTFT 为: (g1 + ··· + g9) * 28 + 11.455 = 163.476 * 28 + 11.455 = 4588.79 ms.
-
-在**视频推理**时, prefil TTFT 为: (g1 + ··· + g17) * 28 + 11.455 = 496.176 * 28 + 11.455 = 13904.383 ms.
+在**四幅图像**推理时 (视频理解是四帧输入), prefil TTFT 为: (g1 + ··· + g9) * 28 + 11.455 = 163.476 * 28 + 11.455 = 4588.79 ms.
 
 模型解码速度为: 1000 / 86.969 ms = 11.50 tokens/s.
 
----
-
-固定 320 prefill 推理, prefill 每一层耗时 28.258 ms, 一共 28 层, decode 耗时 2.510 ms, post 耗时 11.761 ms.
 
 ## 技术讨论
 

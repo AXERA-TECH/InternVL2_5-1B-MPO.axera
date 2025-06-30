@@ -1,6 +1,7 @@
 # import llm_utils
 import dataclasses
 import json
+from decord import VideoReader, cpu
 from transformers import AutoTokenizer, AutoConfig
 import torch
 from torchvision.transforms.functional import InterpolationMode
@@ -141,6 +142,40 @@ def post_process(data, topk=1, topp=0.9, temperature=0.6):
     return next_token, candidate_index, candidate_soft
 
 
+def get_index(bound, fps, max_frame, first_idx=0, num_segments=32):
+    if bound:
+        start, end = bound[0], bound[1]
+    else:
+        start, end = -100000, 100000
+    start_idx = max(first_idx, round(start * fps))
+    end_idx = min(round(end * fps), max_frame)
+    seg_size = float(end_idx - start_idx) / num_segments
+    frame_indices = np.array([
+        int(start_idx + (seg_size / 2) + np.round(seg_size * idx))
+        for idx in range(num_segments)
+    ])
+    return frame_indices
+
+
+def load_video(video_path, bound=None, input_size=448, max_num=1, num_segments=32):
+    vr = VideoReader(video_path, ctx=cpu(0), num_threads=1)
+    max_frame = len(vr) - 1
+    fps = float(vr.get_avg_fps())
+
+    pixel_values_list, num_patches_list = [], []
+    transform = build_transform(input_size=input_size)
+    frame_indices = get_index(bound, fps, max_frame, first_idx=0, num_segments=num_segments)
+    for frame_index in frame_indices:
+        img = Image.fromarray(vr[frame_index].asnumpy()).convert('RGB')
+        img = dynamic_preprocess(img, image_size=input_size, use_thumbnail=True, max_num=max_num)
+        pixel_values = [transform(tile) for tile in img]
+        pixel_values = torch.stack(pixel_values)
+        num_patches_list.append(pixel_values.shape[0])
+        pixel_values_list.append(pixel_values)
+    pixel_values = torch.cat(pixel_values_list)
+    return pixel_values, num_patches_list
+
+
 if __name__ == "__main__":
 
     prompt = None
@@ -153,6 +188,8 @@ if __name__ == "__main__":
                         help="Path to save compiled axmodel of llama model")
     parser.add_argument("-i", "--images", nargs='+', type=str, default=None,
                         help="Path to the test image.")
+    parser.add_argument("-v", "--video", type=str, default=None,
+                        help="Path to the test video.")
     parser.add_argument("--segments", type=int, default=4,
                         help="Number of segments to split the video into.") # TODO
     parser.add_argument("-q", "--question", type=str, default="Please calculate the derivative of the function y=2x^2+3.",
@@ -164,37 +201,71 @@ if __name__ == "__main__":
     axmodel_path = args.axmodel_path
     vit_axmodel_path = args.vit_model
     test_imgs_path = args.images
+    test_video_path = args.video
+    segments = args.segments
+    is_video = True if test_video_path is not None else False
 
     config = AutoConfig.from_pretrained(hf_model_path, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(hf_model_path, trust_remote_code=True, use_fast=False)
     # set the max number of tiles in `max_num`
-    pixel_values_list = []
-    if test_imgs_path is not None:
-        for img_path in test_imgs_path:
-            pixel_values = load_image(img_path, input_size=448, max_num=1)
-            pixel_values_list.append(pixel_values)
-        print(f"输入图像数: {len(pixel_values_list)}")
-        print("preprocess image done!")
 
-        # extract img feature by vit
-        vit_session = InferenceSession(vit_axmodel_path)
-        vit_output_list = []
-        for idx, pixel_values in enumerate(pixel_values_list):
-            vit_output = vit_session.run(None, {"image": pixel_values.numpy()})[0]
-            vit_output_list.append(vit_output.copy()) # 避免 vit 输出结果使用同一块内存
+    if not is_video:
+        pixel_values_list = []
+        if test_imgs_path is not None:
+            for img_path in test_imgs_path:
+                pixel_values = load_image(img_path, input_size=448, max_num=1)
+                pixel_values_list.append(pixel_values)
+            print(f"输入图像数: {len(pixel_values_list)}")
+            print("preprocess image done!")
 
-        print(f"vit_output.shape is {vit_output_list[0].shape}, vit feature extract done!")
+            # extract img feature by vit
+            vit_session = InferenceSession(vit_axmodel_path)
+            vit_output_list = []
+            for idx, pixel_values in enumerate(pixel_values_list):
+                vit_output = vit_session.run(None, {"image": pixel_values.numpy()})[0]
+                vit_output_list.append(vit_output.copy()) # 避免 vit 输出结果使用同一块内存
 
-    prompt = "<|im_start|>system\n你是由上海人工智能实验室联合商汤科技开发的书生多模态大模型, 英文名叫 InternVL2_5-1B-MPO, 是一个有用无害的人工智能助手, 擅长思考和回答用户的问题. 请你在回答问题时使用简体中文.<|im_end|>\n"
-    question = args.question
-    prompt += "<|im_start|>user\n" + question
+            print(f"vit_output.shape is {vit_output_list[0].shape}, vit feature extract done!")
 
-    if len(pixel_values_list) > 0:
-        for idx in range(len(pixel_values_list)):
-            prompt += "\n<img>" + "<IMG_CONTEXT>" * 256 + "</img>\n"
+        prompt = "<|im_start|>system\n你是由上海人工智能实验室联合商汤科技开发的书生多模态大模型, 英文名叫 InternVL2_5-1B-MPO, 是一个有用无害的人工智能助手, 擅长思考和回答用户的问题. 请你在回答问题时使用简体中文.<|im_end|>\n"
+        question = args.question
+        prompt += "<|im_start|>user\n" + question
 
-    prompt += "<|im_end|>\n<|im_start|>assistant"
-    print(f"prompt is {prompt}")
+        if len(pixel_values_list) > 0:
+            for idx in range(len(pixel_values_list)):
+                prompt += "\n<img>" + "<IMG_CONTEXT>" * 256 + "</img>\n"
+
+        prompt += "<|im_end|>\n<|im_start|>assistant"
+    else:
+        # raise NotImplementedError("Video inference is not implemented yet.")
+        pixel_values, num_patches_list = load_video(test_video_path, num_segments=args.segments, max_num=1)
+        # Frame1: <image>\nFrame2: <image>\n...\nFrame8: <image>\n{question}
+
+        pixel_values_list = [e[None, ...] for e in pixel_values]
+        if pixel_values_list is not None:
+            print(f"输入帧数: {len(pixel_values_list)}")
+            print("preprocess image done!")
+
+            # extract img feature by vit
+            vit_session = InferenceSession(vit_axmodel_path)
+            vit_output_list = []
+            for idx, pixel_values in enumerate(pixel_values_list):
+                vit_output = vit_session.run(None, {"image": pixel_values.numpy()})[0]
+                vit_output_list.append(vit_output.copy()) # 避免 vit 输出结果使用同一块内存
+
+            print(f"vit_output.shape is {vit_output_list[0].shape}, vit feature extract done!")
+
+        question = args.question
+        prompt = "<|im_start|>system\n你是书生·万象, 英文名是InternVL, 是由上海人工智能实验室、清华大学及多家合作单位联合开发的多模态大语言模型.<|im_end|>\n"
+        prompt += "<|im_start|>user"
+
+        if len(pixel_values_list) > 0:
+            for idx in range(len(pixel_values_list)):
+                prompt += f"\nFrame{idx+1}: <img>" + "<IMG_CONTEXT>" * 256 + "</img>\n"
+
+        prompt += f"\n{question}<|im_end|>\n<|im_start|>assistant\n"
+
+    # print(f"prompt is {prompt}")
     token_ids = tokenizer.encode(prompt)
 
     # 图像理解
