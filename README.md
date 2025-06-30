@@ -260,23 +260,43 @@ Inference done!
 
 Chips | Image num | ImageEncoder (448x448) | Prefill TTFT | Decoder | w8a16
 ---| ---| ---| ---| ---| ---|
-AX650N | 0 | 0 ms | 220.979 ms (128 tokens) | 86.969 ms | 11.50 tokens/sec
-AX650N | 1 | 364.870 ms | 862.291 ms (384 tokens) | 86.969 ms | 11.50 tokens/sec
-AX650N | 4 | 1460 ms | 4588.79 ms (1152 tokens) | 86.969 ms | 11.50 tokens/sec
+AX650N | 0 | 0 ms | 94.615 ms (128 tokens) | 29.721 | 33.64 tokens/sec
+AX650N | 1 | 364.870 ms | 381.775 ms (384 tokens) | 29.721 | 33.64 tokens/sec
+AX650N | 4 | 1460 ms | 2175.631 ms (1152 tokens) | 29.721 | 33.64 tokens/sec
 
-备注: 128 chunk prefill 推理, decode layer 耗时 2.686 ms * 28, post 耗时 11.455 ms.
+备注: 128 chunk prefill 推理, decode layer 耗时 22.49 ms, post 耗时 7.231 ms.
 
 decode 阶段只有一个子图, 耗时如下:
 
+```sh
+g0: 0.937 ms
 ```
-g0: 2.664 ms
+
+prefill 各子图耗时:
+
+```sh
+g1: 3.641 ms
+g2: 5.113 ms
+g3: 6.852 ms
+g4: 8.273 ms
+g5: 10.062 ms
+g6: 11.714 ms
+g7: 13.487 ms
+g8: 14.727 ms
+g9: 16.481 ms
+```
+
+post 耗时:
+
+```sh
+g0: 7.231 ms
 ```
 
 在**单幅图像**推理时, prefil TTFT 为: (g1 + g2 + g3) * 28 + 11.455 = 30.387 * 28 + 11.455 = 862.291 ms.
 
 在**四幅图像**推理时 (视频理解是四帧输入), prefil TTFT 为: (g1 + ··· + g9) * 28 + 11.455 = 163.476 * 28 + 11.455 = 4588.79 ms.
 
-模型解码速度为: 1000 / 86.969 ms = 11.50 tokens/s.
+模型解码速度为: 1000 / 29.721 ms = 33.64 tokens/s.
 
 
 ## 技术讨论
